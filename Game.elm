@@ -1,10 +1,11 @@
-import Collage exposing (collage, rect, filled, move)
+import Collage exposing (collage, rect, filled, move, toForm)
 import Color exposing (rgb)
 import Dict
 import Element exposing (Element, toHtml)
 import Html exposing (Html)
 import Html.App as App
 import Keyboard
+import Board
 
 
 -- MODEL
@@ -12,12 +13,14 @@ import Keyboard
 type alias Model =
   { rectX : Float
   , rectY : Float
+  , board : Board.Board
   }
 
 initialModel : Model
 initialModel =
-  { rectX = 20
-  , rectY = 20
+  { rectX = 15
+  , rectY = 85
+  , board = Board.blankBoard
   }
 
 
@@ -25,8 +28,9 @@ initialModel =
 
 scene : Model -> Element
 scene model =
-  collage 200 200
-    [ rect 20 20
+  collage 400 500
+    [ toForm (Board.draw model.board)
+    , rect 20 20
         |> filled (rgb 174 38 238)
         |> move (model.rectX, model.rectY)
     ]
