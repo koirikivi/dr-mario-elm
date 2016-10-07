@@ -1,5 +1,5 @@
 module Board exposing (..)
-import Collage exposing (collage, rect, filled, move, Form, Shape, toForm)
+import Collage exposing (collage, rect, filled, move, Form, Shape, toForm, rotate)
 import Color exposing (rgb)
 import Dict
 import Element exposing (Element, toHtml)
@@ -9,15 +9,19 @@ import List
 -- MODEL
 
 type alias Board =
-  { blocks : Dict.Dict (Int, Int) Block
-  }
+  { blocks : BlockDict }
+
+type alias BlockDict =
+  Dict.Dict (Int, Int) Block
 
 blankBoard : Board
 blankBoard =
   { blocks =
       Dict.fromList
         [ ((1, 1), (Block Pill Red False None))
+        , ((1, 2), (Block Pill Yellow False None))
         , ((4, 5), (Block Pill Blue False None))
+        , ((4, 6), (Block Pill Red False None))
         , ((0, 0), (Block Pill Yellow False None))
         ]
   }
@@ -50,6 +54,37 @@ type Direction
   | Left
   | Right
   | None
+
+
+-- UPDATE
+
+update : Board -> Board
+update board =
+  let
+    blocks = board.blocks
+      |> applyGravity
+  in
+    { board | blocks = blocks }
+
+applyGravity : BlockDict -> BlockDict
+applyGravity blocks =
+  let
+    lowestFirst = \((x, y), block) -> y
+    conditionallyMoveDown = \((x, y), block) ->
+      if y == 0 then
+        ((x,y), { block | falling = False })
+      else
+        case Dict.get (x, y - 1) blocks of
+          Just _ ->
+            ((x,y), { block | falling = False })
+          Nothing->
+            ((x, y - 1), { block | falling = True })
+  in
+    blocks
+      |> Dict.toList
+      --|> List.sortBy lowestFirst
+      |> List.map conditionallyMoveDown
+      |> Dict.fromList
 
 
 -- VIEW
@@ -99,3 +134,7 @@ drawBlock ((x, y), block) =
       |> filled color
       |> resetPos
       |> move (toFloat (x * blockSize), toFloat (y * blockSize))
+      |> if block.falling then
+          rotate (degrees 10)
+        else
+          \a -> a  --no-op

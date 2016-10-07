@@ -1,10 +1,13 @@
 import Collage exposing (collage, rect, filled, move, toForm)
-import Color exposing (rgb)
+--import Color exposing (rgb)
 import Dict
+--import Debug
 import Element exposing (Element, toHtml)
 import Html exposing (Html)
 import Html.App as App
 import Keyboard
+import Time exposing (Time, second)
+
 import Board
 
 
@@ -30,9 +33,9 @@ scene : Model -> Element
 scene model =
   collage 400 500
     [ toForm (Board.draw model.board)
-    , rect 20 20
-        |> filled (rgb 174 38 238)
-        |> move (model.rectX, model.rectY)
+    --, rect 20 20
+    --    |> filled (rgb 174 38 238)
+    --    |> move (model.rectX, model.rectY)
     ]
 
 view : Model -> Html msg
@@ -43,7 +46,8 @@ view model =
 -- MESSAGES
 
 type Msg
-  = KeyMsg Key
+  = KeyPressed Key
+  | UpdateBoard Float
 
 type Key
   = Up
@@ -59,8 +63,14 @@ type Key
 update :  Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
-    KeyMsg key ->
+    KeyPressed key ->
       ( handleKeypress model key, Cmd.none)
+    UpdateBoard time ->
+      let
+        --_ = Debug.log "updating board" time
+        foo = "foo"
+      in
+        ( { model | board = Board.update model.board }, Cmd.none )
 
 handleKeypress : Model -> Key -> Model
 handleKeypress model key =
@@ -85,7 +95,8 @@ handleKeypress model key =
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
-    [ Keyboard.downs (\k -> KeyMsg (codeToKey k))
+    [ Keyboard.downs (\k -> KeyPressed (codeToKey k))
+    , Time.every second UpdateBoard
     ]
 
 codeToKey : Keyboard.KeyCode -> Key
