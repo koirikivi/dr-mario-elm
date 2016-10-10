@@ -2,6 +2,7 @@ module Board exposing (..)
 import Array exposing (Array)
 import Dict exposing (Dict)
 import Maybe exposing (andThen, withDefault)
+import Common exposing (Position)
 
 
 -- DATA
@@ -16,22 +17,19 @@ type Block
   = Empty
   | Virus Color
   -- color, connected, falling
-  | Pill Color Direction Bool
+  | Pill Color Connection Bool
 
 type Color
   = Red
   | Blue
   | Yellow
 
-type Direction
+type Connection
   = Up
   | Down
   | Left
   | Right
   | None
-
-type alias Position =
-  (Int, Int)
 
 
 -- UTILS
@@ -67,12 +65,9 @@ set (x, y) block board =
       Just row'' ->
         Array.set y row'' board
 
--- return the block in x, y, out of bounds == empty
--- (Debug.crash would arguably be better)
-get : Position -> Board -> Block
+get : Position -> Board -> Maybe Block
 get (x, y) board =
-  (Array.get y board `andThen` Array.get x)
-    |> withDefault Empty
+  Array.get y board `andThen` Array.get x
 
 blocks : Board -> List Block
 blocks board =
@@ -215,13 +210,26 @@ moveFalling ((x, y), block) board =
 
 canBeFallenThrough : Position -> Board -> Bool
 canBeFallenThrough (x, y) board =
-  if y < 0 then
-    False
-  else
-    case (get (x, y) board) of
-      Empty ->
-        True
-      Pill _ _ True ->
-        True
-      _ ->
-        False
+  case (get (x, y) board) of
+    Nothing ->
+      False
+    Just block ->
+      case block of
+        Empty ->
+          True
+        Pill _ _ True ->
+          True
+        _ ->
+          False
+
+canBeMovenThrough : Position -> Board -> Bool
+canBeMovenThrough (x, y) board =
+  case (get (x, y) board) of
+    Nothing ->
+      False
+    Just block ->
+      case block of
+        Empty ->
+          True
+        _ ->
+          False

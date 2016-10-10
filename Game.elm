@@ -1,28 +1,28 @@
 import Collage exposing (collage, rect, filled, move, toForm)
 import Dict
---import Debug
+import Debug
 import Element exposing (Element, toHtml)
 import Html exposing (Html)
 import Html.App as App
 import Keyboard
+import Maybe exposing (withDefault, oneOf)
 import Time exposing (Time, second)
 
 import Board
 import Graphics
+import PlayerPill exposing (PlayerPill, RotationDirection(..))
 
 
 -- MODEL
 
 type alias Model =
-  { rectX : Float
-  , rectY : Float
+  { pill : PlayerPill.PlayerPill
   , board : Board.Board
   }
 
 initialModel : Model
 initialModel =
-  { rectX = 15
-  , rectY = 85
+  { pill = PlayerPill.testPill
   , board = Board.testBoard
   }
 
@@ -33,9 +33,7 @@ scene : Model -> Element
 scene model =
   collage 400 500
     [ toForm (Graphics.drawBoard model.board)
-    --, rect 20 20
-    --    |> filled (rgb 174 38 238)
-    --    |> move (model.rectX, model.rectY)
+    , toForm (Graphics.drawPill model.pill)
     ]
 
 view : Model -> Html msg
@@ -54,6 +52,8 @@ type Key
   | Down
   | Left
   | Right
+  | RotateLeft
+  | RotateRight
   | OtherKey Int
 
 
@@ -66,29 +66,57 @@ update msg model =
     KeyPressed key ->
       ( handleKeypress model key, Cmd.none)
     UpdateBoard time ->
-      let
-        --_ = Debug.log "updating board" time
-        foo = "foo"
-      in
-        ( { model | board = Board.update model.board }, Cmd.none )
+      ( { model | board = Board.update model.board }
+          |> tryMoves [ PlayerPill.move (0, -1) ]
+      , Cmd.none
+      )
 
 handleKeypress : Model -> Key -> Model
 handleKeypress model key =
   let
-    speed = 10
+    moveLeft = PlayerPill.move (-1, 0)
+    moveRight = PlayerPill.move (1, 0)
+    moveDown = PlayerPill.move (0, -1)
+    rotateCW = PlayerPill.rotate ClockWise
+    rotateCCW = PlayerPill.rotate CounterClockWise
   in
     case key of
-      Up ->
-        { model | rectY = model.rectY + speed }
-      Down ->
-        { model | rectY = model.rectY - speed }
       Left ->
-        { model | rectX = model.rectX - speed }
+        tryMoves [ moveLeft ] model
       Right ->
-        { model | rectX = model.rectX + speed }
-      OtherKey _ ->
-        model
+        tryMoves [ moveRight ] model
+      Up ->  -- TODO: nope
+        tryMoves [ PlayerPill.move (0, 1) ] model
+      Down ->
+        tryMoves [ moveDown ] model
+      -- TODO: These two don't seem quite right
+      RotateLeft ->
+        tryMoves [ rotateCW, rotateCW >> moveRight ] model
+      RotateRight ->
+        tryMoves [ rotateCCW, rotateCCW >> moveLeft ] model
+      OtherKey keyCode ->
+        Debug.log "keycode" keyCode |> \a -> model
+      --_ ->
+      --  model
 
+tryMoves : List (PlayerPill -> PlayerPill) -> Model -> Model
+tryMoves moves model =
+  moves
+    |> List.map (\move -> tryMove move model)
+    |> oneOf
+    |> withDefault model
+
+tryMove : (PlayerPill -> PlayerPill) -> Model -> Maybe Model
+tryMove move model =
+  let
+    pill' = move model.pill
+    (pos1, pos2) = PlayerPill.coordinates pill'
+  in
+    if (Board.canBeMovenThrough pos1 model.board
+        && Board.canBeMovenThrough pos2 model.board) then
+      Just { model | pill = pill' }
+    else
+      Nothing
 
 -- SUBSCRIPTIONS
 
@@ -108,6 +136,8 @@ codeToKey code =
         , ( 40, Down )
         , ( 37, Left )
         , ( 39, Right )
+        , ( 90, RotateLeft )  -- z
+        , ( 88, RotateRight ) -- x
         ]
     key = Dict.get code keyEventMap
   in

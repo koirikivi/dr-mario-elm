@@ -1,8 +1,12 @@
 module Graphics exposing (..)
-import Board exposing (Board, Block(..), Position)
 import Collage exposing (collage, rect, filled, move, Form, Shape, toForm, rotate)
 import Color exposing (rgb)
 import Element exposing (Element, toHtml)
+
+import Board exposing (Board, Block(..))
+import Common exposing (Position)
+import PlayerPill exposing (PlayerPill)
+
 
 blockSize : Int
 blockSize = 20
@@ -12,6 +16,11 @@ boardSize =
   { width = blockSize * 8
   , height = blockSize * 17
   }
+
+drawPill : PlayerPill -> Element
+drawPill pill =
+    collage boardSize.width boardSize.height
+      (List.filterMap drawBlock (PlayerPill.toBlocks pill))
 
 drawBoard : Board -> Element
 drawBoard board =
@@ -49,7 +58,7 @@ drawBlock ((x, y), block) =
         |> if falling then
             rotate (degrees 10)
           else
-            \a -> a  --no-op
+            identity
         )
 
 drawTile : Int -> Int -> Board.Color -> Form
