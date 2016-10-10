@@ -1,47 +1,21 @@
 module Board exposing (..)
-import Collage exposing (collage, rect, filled, move, Form, Shape, toForm, rotate)
-import Color exposing (rgb)
-import Dict
-import Element exposing (Element, toHtml)
-import List
+import Array exposing (Array)
+import Maybe exposing (andThen, withDefault)
 
 
--- MODEL
+-- DATA
 
 type alias Board =
-  { blocks : BlockDict }
+  Array Row
 
-type alias BlockDict =
-  Dict.Dict (Int, Int) Block
+type alias Row =
+  Array Block
 
-blankBoard : Board
-blankBoard =
-  { blocks =
-      Dict.fromList
-        [ ((1, 1), (Block Pill Red False None))
-        , ((1, 2), (Block Pill Yellow False None))
-        , ((4, 5), (Block Pill Blue False None))
-        , ((4, 6), (Block Pill Red False None))
-        , ((0, 0), (Block Pill Yellow False None))
-        ]
-  }
-
-boardDimensions : { width: Int, height: Int }
-boardDimensions =
-  { width = 8
-  , height = 17
-  }
-
-type alias Block =
-  { blockType : Type
-  , color : Color
-  , falling : Bool
-  , connected : Direction
-  }
-
-type Type
-  = Pill
-  | Virus
+type Block
+  = Empty
+  | Virus Color
+  -- color, connected, falling
+  | Pill Color Direction Bool
 
 type Color
   = Red
@@ -55,86 +29,113 @@ type Direction
   | Right
   | None
 
+type alias Position =
+  (Int, Int)
 
--- UPDATE
+
+-- UTILS
+
+blankBoard : Board
+blankBoard =
+  let
+    blankRow = Array.initialize 8 (always Empty)
+  in
+    Array.initialize 17 (always blankRow)
+
+testBoard : Board
+testBoard =
+  blankBoard
+    |> set (1, 1) (Pill Red None False)
+    |> set (1, 2) (Pill Yellow None False)
+    |> set (4, 5) (Pill Blue None False)
+    |> set (4, 6) (Pill Red None False)
+    |> set (0, 0) (Pill Yellow None False)
+    |> set (6, 3) (Virus Yellow)
+
+set : Position -> Block -> Board -> Board
+set (x, y) block board =
+  let
+    row' = Array.get y board `andThen` (Just << Array.set x block)
+  in
+    case row' of
+      Nothing ->
+        board
+      Just row'' ->
+        Array.set y row'' board
+
+-- return the block in x, y, out of bounds == empty
+-- (Debug.crash would arguably be better)
+get : Position -> Board -> Block
+get (x, y) board =
+  (Array.get y board `andThen` Array.get x)
+    |> withDefault Empty
+
+positionedBlocks : Board -> List (Position, Block)
+positionedBlocks board =
+  Array.toIndexedList board
+    |> List.map (\(y, row) ->
+      Array.toIndexedList row
+        |> List.map (\(x, block) -> ((x, y), block)))
+    |> List.concat
+
+-- create a new board by iterating blocks bottom-up
+foldb : ((Position, Block) -> Board -> Board) -> Board -> Board
+foldb callback board =
+  positionedBlocks board
+    |> List.foldl callback board
+
+-- GAME LOGIC
 
 update : Board -> Board
 update board =
-  let
-    blocks = board.blocks
-      |> applyGravity
-  in
-    { board | blocks = blocks }
+  board
+    |> applyGravity
 
-applyGravity : BlockDict -> BlockDict
-applyGravity blocks =
-  let
-    lowestFirst = \((x, y), block) -> y
-    conditionallyMoveDown = \((x, y), block) ->
-      if y == 0 then
-        ((x,y), { block | falling = False })
-      else
-        case Dict.get (x, y - 1) blocks of
-          Just _ ->
-            ((x,y), { block | falling = False })
-          Nothing->
-            ((x, y - 1), { block | falling = True })
-  in
-    blocks
-      |> Dict.toList
-      --|> List.sortBy lowestFirst
-      |> List.map conditionallyMoveDown
-      |> Dict.fromList
+applyGravity : Board -> Board
+applyGravity board =
+  board
+    |> foldb markFalling
+    |> foldb moveFalling
 
+markFalling : (Position, Block) -> Board -> Board
+markFalling ((x, y), block) board =
+  case block of
+    Pill color connected falling ->
+      let
+        falling' =
+          case connected of
+            Left ->
+              (canBeFallenThrough (x, y - 1) board
+                && canBeFallenThrough (x - 1, y - 1) board)
+            Right ->
+              (canBeFallenThrough (x, y - 1) board
+                && canBeFallenThrough (x + 1, y - 1) board)
+            _ ->
+              canBeFallenThrough (x, y - 1) board
+      in
+        set (x, y) (Pill color connected falling') board
+    _ ->
+      board
 
--- VIEW
+moveFalling : (Position, Block) -> Board -> Board
+moveFalling ((x, y), block) board =
+  case block of
+    Pill color connected True ->
+      board
+        |> set (x, y - 1) (Pill color connected True)
+        |> set (x, y) Empty
+    _ ->
+      board
 
-blockSize : Int
-blockSize = 20
-
-boardSize : { width : Int, height : Int }
-boardSize =
-  { width = blockSize * boardDimensions.width
-  , height = blockSize * boardDimensions.height
-  }
-
-draw : Board -> Element
-draw board =
-  collage boardSize.width boardSize.height
-    ( -- bg
-      [ rect (toFloat boardSize.width) (toFloat boardSize.height)
-        |> filled (rgb 225 225 225)
-      ]
-      ++
-      -- pills and virii
-      List.map drawBlock (Dict.toList board.blocks)
-    )
-
--- move a block to the bottom-right corner
-resetPos : Form -> Form
-resetPos shape =
-  let
-    boardLeft = toFloat boardSize.width / 2
-    boardBottom = toFloat boardSize.height / 2
-    left = boardLeft - (toFloat blockSize / 2)
-    bottom = boardBottom - (toFloat blockSize / 2)
-  in
-    shape
-      |> move (-left, -bottom)
-
-drawBlock : ((Int, Int), Block) -> Form
-drawBlock ((x, y), block) =
-  let
-    color = case block.color of
-      Red ->    rgb 225  75  75
-      Blue ->   rgb  75  75 225
-      Yellow -> rgb 225 225  75
-  in
-    rect (toFloat blockSize) (toFloat blockSize)
-      |> filled color
-      |> resetPos
-      |> move (toFloat (x * blockSize), toFloat (y * blockSize))
-      |> if block.falling then
-          rotate (degrees 10)
-        else
-          \a -> a  --no-op
+canBeFallenThrough : Position -> Board -> Bool
+canBeFallenThrough (x, y) board =
+  if y < 0 then
+    False
+  else
+    case (get (x, y) board) of
+      Empty ->
+        True
+      Pill _ _ True ->
+        True
+      _ ->
+        False

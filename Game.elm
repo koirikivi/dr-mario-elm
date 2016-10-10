@@ -1,5 +1,4 @@
 import Collage exposing (collage, rect, filled, move, toForm)
---import Color exposing (rgb)
 import Dict
 --import Debug
 import Element exposing (Element, toHtml)
@@ -9,6 +8,7 @@ import Keyboard
 import Time exposing (Time, second)
 
 import Board
+import Graphics
 
 
 -- MODEL
@@ -23,7 +23,7 @@ initialModel : Model
 initialModel =
   { rectX = 15
   , rectY = 85
-  , board = Board.blankBoard
+  , board = Board.testBoard
   }
 
 
@@ -32,7 +32,7 @@ initialModel =
 scene : Model -> Element
 scene model =
   collage 400 500
-    [ toForm (Board.draw model.board)
+    [ toForm (Graphics.drawBoard model.board)
     --, rect 20 20
     --    |> filled (rgb 174 38 238)
     --    |> move (model.rectX, model.rectY)
