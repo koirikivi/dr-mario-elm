@@ -15,13 +15,13 @@ import PlayerPill exposing (PlayerPill, RotationDirection(..))
 -- MODEL
 
 type alias Model =
-  { pill : PlayerPill.PlayerPill
+  { pill : Maybe PlayerPill.PlayerPill
   , board : Board.Board
   }
 
 initialModel : Model
 initialModel =
-  { pill = PlayerPill.testPill
+  { pill = Just PlayerPill.testPill
   , board = Board.testBoard
   }
 
@@ -30,12 +30,17 @@ initialModel =
 
 view : Model -> Html msg
 view model =
-  toHtml
-    ( collage 400 500
-        [ toForm (Graphics.drawBoard model.board)
-        , toForm (Graphics.drawPill model.pill)
-        ]
-    )
+  let
+    boardForms = 
+      [ toForm (Graphics.drawBoard model.board) ]
+    pillForms =
+      case model.pill of
+        Nothing -> []
+        Just pill -> [ toForm (Graphics.drawPill pill) ]
+  in
+    toHtml
+      ( collage 400 500 (boardForms ++ pillForms)
+      )
 
 
 -- MESSAGES
@@ -77,14 +82,18 @@ updateBoard model =
 
 updatePill : Model -> Model
 updatePill model =
-  let
-    newState = tryMove (PlayerPill.move (0, -1)) model
-  in
-    case newState of
-      Just model' ->
-        model'
-      Nothing ->
-        { model | board = applyPill model.pill model.board }
+  case model.pill of
+    Nothing -> model
+    Just pill ->
+      let
+        newState = tryMove (PlayerPill.move (0, -1)) model
+      in
+        case newState of
+          Just model' ->
+            model'
+          Nothing ->
+            { model | board = applyPill pill model.board
+                    , pill = Nothing }
 
 applyPill : PlayerPill -> Board -> Board
 applyPill pill board =
@@ -126,15 +135,18 @@ tryMoves moves model =
 
 tryMove : (PlayerPill -> PlayerPill) -> Model -> Maybe Model
 tryMove move model =
-  let
-    pill' = move model.pill
-    (pos1, pos2) = PlayerPill.coordinates pill'
-  in
-    if (Board.canBeMovenThrough pos1 model.board
-        && Board.canBeMovenThrough pos2 model.board) then
-      Just { model | pill = pill' }
-    else
-      Nothing
+  case model.pill of
+    Nothing -> Nothing
+    Just pill ->
+      let
+        pill' = move pill
+        (pos1, pos2) = PlayerPill.coordinates pill'
+      in
+        if (Board.canBeMovenThrough pos1 model.board
+            && Board.canBeMovenThrough pos2 model.board) then
+          Just { model | pill = Just pill' }
+        else
+          Nothing
 
 -- SUBSCRIPTIONS
 
