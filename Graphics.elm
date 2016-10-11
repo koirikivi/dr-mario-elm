@@ -1,9 +1,10 @@
 module Graphics exposing (..)
-import Collage exposing (collage, rect, filled, move, Form, Shape, toForm, rotate)
+import Collage exposing (
+  collage, rect, filled, move, Form, Shape, toForm, rotate, dashed, outlined)
 import Color exposing (rgb)
 import Element exposing (Element, toHtml)
 
-import Board exposing (Board, Block(..))
+import Board exposing (Board, Block(..), Connection(..))
 import Common exposing (Position)
 import PlayerPill exposing (PlayerPill)
 
@@ -27,7 +28,7 @@ drawBoard board =
   collage boardSize.width boardSize.height
     ( -- bg
       [ rect (toFloat boardSize.width) (toFloat boardSize.height)
-        |> filled (rgb 225 225 225)
+        |> filled (rgb 245 245 245)
       ]
       ++
       -- pills and virii
@@ -52,22 +53,63 @@ drawBlock ((x, y), block) =
     Empty ->
       Nothing
     Virus color ->
-      Just (drawTile x y color)
+      Just (
+        circleTile
+          |> setColor color
+          |> setPos x y
+      )
     Pill color connected falling ->
-      Just (drawTile x y color
-        |> if falling then
-            rotate (degrees 10)
-          else
-            identity
-        )
+      let
+        form = case connected of
+          None -> rectTile |> setColor color
+          Right -> roundedRect color
+          Up -> roundedRect color |> rotate (degrees 90)
+          Left -> roundedRect color |> rotate (degrees 180)
+          Down -> roundedRect color |> rotate (degrees 270)
+      in
+        Just (
+          form
+            |> setPos x y
+            |> if falling then
+                rotate (degrees 10)
+              else
+                identity
+          )
+
+roundedRect : Board.Color -> Form
+roundedRect color =
+  collage blockSize blockSize
+    [ circleTile
+        |> setColor color
+    , rect (toFloat blockSize) (toFloat blockSize)
+        |> setColor color
+        |> Collage.moveX (toFloat blockSize / 2)
+    ]
+    |> toForm
+
+rectTile : Shape
+rectTile =
+  rect (toFloat blockSize) (toFloat blockSize)
+
+circleTile : Shape
+circleTile =
+  Collage.circle (toFloat blockSize / 2)
 
 drawTile : Int -> Int -> Board.Color -> Form
 drawTile x y color =
-  rect (toFloat blockSize) (toFloat blockSize)
-    |> filled (convertColor color)
+  rectTile
+    |> setColor color
+    |> setPos x y
+
+setColor : Board.Color -> Shape -> Form
+setColor color shape =
+  shape |> filled (convertColor color)
+
+setPos : Int -> Int -> Form -> Form
+setPos x y shape =
+  shape
     |> resetPos
     |> move (toFloat (x * blockSize), toFloat (y * blockSize))
-
 
 convertColor : Board.Color -> Color.Color
 convertColor color =
