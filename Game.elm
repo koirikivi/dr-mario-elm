@@ -7,7 +7,7 @@ import Keyboard
 import Maybe exposing (withDefault, oneOf)
 import Time exposing (Time, second)
 
-import Board
+import Board exposing (Board)
 import Graphics
 import PlayerPill exposing (PlayerPill, RotationDirection(..))
 
@@ -77,8 +77,19 @@ updateBoard model =
 
 updatePill : Model -> Model
 updatePill model =
-  model
-    |> tryMoves [ PlayerPill.move (0, -1) ]
+  let
+    newState = tryMove (PlayerPill.move (0, -1)) model
+  in
+    case newState of
+      Just model' ->
+        model'
+      Nothing ->
+        { model | board = applyPill model.pill model.board }
+
+applyPill : PlayerPill -> Board -> Board
+applyPill pill board =
+  PlayerPill.toBlocks pill
+    |> List.foldl (\(pos, block) -> Board.set pos block) board
 
 handleKeypress : Model -> Key -> Model
 handleKeypress model key =
