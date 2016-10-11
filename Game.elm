@@ -1,5 +1,4 @@
 import Collage exposing (collage, rect, filled, move, toForm)
-import Dict
 import Debug
 import Element exposing (Element, toHtml)
 import Html exposing (Html)
@@ -129,23 +128,14 @@ subscriptions model =
 
 codeToKey : Keyboard.KeyCode -> Key
 codeToKey code =
-  let
-    keyEventMap =
-      Dict.fromList
-        [ ( 38, Up )
-        , ( 40, Down )
-        , ( 37, Left )
-        , ( 39, Right )
-        , ( 90, RotateLeft )  -- z
-        , ( 88, RotateRight ) -- x
-        ]
-    key = Dict.get code keyEventMap
-  in
-    case key of
-      Just k ->
-        k
-      Nothing ->
-        OtherKey code
+  case code of
+    38 -> Up
+    40 -> Down
+    37 -> Left
+    39 -> Right
+    90 -> RotateLeft  -- z
+    88 -> RotateRight -- x
+    c  -> OtherKey c
 
 
 -- MAIN
