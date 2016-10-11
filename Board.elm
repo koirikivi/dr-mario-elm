@@ -101,13 +101,17 @@ isFalling block =
 update : Board -> Board
 update board =
   board
-    |> applyGravity
     |> (
-      if List.any isFalling (blocks board) then
+      if isUpdating board then
         identity
       else
         applyCombos
       )
+    |> applyGravity
+
+isUpdating : Board -> Bool
+isUpdating board =
+  List.any isFalling (blocks board)
 
 applyGravity : Board -> Board
 applyGravity board =

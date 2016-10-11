@@ -21,7 +21,7 @@ type alias Model =
 
 initialModel : Model
 initialModel =
-  { pill = Just PlayerPill.testPill
+  { pill = Nothing
   , board = Board.testBoard
   }
 
@@ -75,6 +75,23 @@ updateGame model =
   model
     |> updateBoard
     |> updatePill
+    |> spawnPill
+
+spawnPill : Model -> Model
+spawnPill model =
+  case model.pill of
+    Just _ ->
+      model
+    Nothing ->
+      if Board.isUpdating model.board then
+        model
+      else
+        { model | pill = Just (nextPill model) }
+
+nextPill : Model -> PlayerPill
+nextPill model =
+  PlayerPill.testPill
+
 
 updateBoard : Model -> Model
 updateBoard model =
