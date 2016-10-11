@@ -28,23 +28,21 @@ initialModel =
 
 -- VIEW
 
-scene : Model -> Element
-scene model =
-  collage 400 500
-    [ toForm (Graphics.drawBoard model.board)
-    , toForm (Graphics.drawPill model.pill)
-    ]
-
 view : Model -> Html msg
 view model =
-  toHtml (scene model)
+  toHtml
+    ( collage 400 500
+        [ toForm (Graphics.drawBoard model.board)
+        , toForm (Graphics.drawPill model.pill)
+        ]
+    )
 
 
 -- MESSAGES
 
 type Msg
   = KeyPressed Key
-  | UpdateBoard Float
+  | GameTick Float
 
 type Key
   = Up
@@ -64,11 +62,23 @@ update msg model =
   case msg of
     KeyPressed key ->
       ( handleKeypress model key, Cmd.none)
-    UpdateBoard time ->
-      ( { model | board = Board.update model.board }
-          |> tryMoves [ PlayerPill.move (0, -1) ]
-      , Cmd.none
-      )
+    GameTick time ->
+      ( updateGame model, Cmd.none )
+
+updateGame : Model -> Model
+updateGame model =
+  model
+    |> updateBoard
+    |> updatePill
+
+updateBoard : Model -> Model
+updateBoard model =
+  { model | board = Board.update model.board }
+
+updatePill : Model -> Model
+updatePill model =
+  model
+    |> tryMoves [ PlayerPill.move (0, -1) ]
 
 handleKeypress : Model -> Key -> Model
 handleKeypress model key =
@@ -95,8 +105,6 @@ handleKeypress model key =
         tryMoves [ rotateCCW, rotateCCW >> moveLeft ] model
       OtherKey keyCode ->
         Debug.log "keycode" keyCode |> \a -> model
-      --_ ->
-      --  model
 
 tryMoves : List (PlayerPill -> PlayerPill) -> Model -> Model
 tryMoves moves model =
@@ -123,7 +131,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
     [ Keyboard.downs (\k -> KeyPressed (codeToKey k))
-    , Time.every second UpdateBoard
+    , Time.every second GameTick
     ]
 
 codeToKey : Keyboard.KeyCode -> Key
