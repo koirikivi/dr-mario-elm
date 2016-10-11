@@ -138,7 +138,29 @@ applyCombos board =
   in
     combos
       |> List.concat
-      |> List.foldl (\position board -> set position Empty board) board
+      |> List.foldl (\position board -> destroyBlock position board) board
+
+destroyBlock : Position -> Board -> Board
+destroyBlock (x, y) board =
+  let
+    block = get (x, y) board
+  in
+    board
+      |> set (x, y) Empty
+      |> case block of
+        Just (Pill _ Up _)    -> resetConnection (x, y + 1)
+        Just (Pill _ Down _)  -> resetConnection (x, y - 1)
+        Just (Pill _ Left _)  -> resetConnection (x - 1, y)
+        Just (Pill _ Right _) -> resetConnection (x + 1, y)
+        _ -> identity
+
+resetConnection : Position -> Board -> Board
+resetConnection position board =
+  case get position board of
+    Just (Pill color _ falling) ->
+      set position (Pill color None falling) board
+    _ ->
+      board
 
 -- this is not yet final..
 -- - combos on same row or column may be detected twice
