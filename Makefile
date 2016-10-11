@@ -1,4 +1,8 @@
-develop:
-	node node_modules/elm-live/bin/elm-live.js game.js
+install:
+	npm install elm elm-live
+	node node_modules/elm/binwrappers/elm-package install --yes
 
-.PHONY: develop
+develop:
+	node node_modules/elm-live/bin/elm-live.js Game.elm
+
+.PHONY: install develop
